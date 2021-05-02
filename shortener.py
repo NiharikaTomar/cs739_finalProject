@@ -1,34 +1,29 @@
-from flask import Flask, render_template, request, redirect, url_for
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, render_template, request, redirect, url_for, g
 import random
 import string
-import os
+from db import DB
 
+
+secret = 'admin:password'  # this is dummy secret, replace it with actual credentials
+db_url = 'http://{}@localhost:5984/'.format(secret)
+db_name = 'key_value_store'
 shortener = Flask(__name__)
-shortener.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///urls.db'
-shortener.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(shortener)
 
 @shortener.before_first_request
-def create_tables():
-    db.create_all()
+def get_db():
+    if 'db' not in g:
+        g.db = DB(db_url, db_name)
 
-class Urls(db.Model):
-    id_ = db.Column("id_", db.Integer, primary_key=True)
-    long = db.Column("long", db.String())
-    short = db.Column("short", db.String(10))
+    return g.db
 
-    def __init__(self, long, short):
-        self.long = long
-        self.short = short
 
 def shorten_url():
     letters = string.ascii_lowercase + string.ascii_uppercase
     while True:
         rand_letters = random.choices(letters, k=7)
         rand_letters = "".join(rand_letters)
-        short_url = Urls.query.filter_by(short=rand_letters).first()
+        short_url = get_db().find(short_url=rand_letters)
         if not short_url:
             return rand_letters
 
@@ -36,30 +31,24 @@ def shorten_url():
 @shortener.route('/', methods=['POST', 'GET'])
 def home():
     if request.method == "POST":
-        url_received = request.form["url_form"]
-        found_url = Urls.query.filter_by(long=url_received).first()
-
-        if found_url:
-            return redirect(url_for("display_short_url", url=found_url.short))
-            # return f"{found_url.short}
-        else:
-            short_url = shorten_url()
-            print(short_url)
-            new_url = Urls(url_received, short_url)
-            db.session.add(new_url)
-            db.session.commit()
-            return redirect(url_for("display_short_url", url=short_url))
-            # return short_url
+        long_url = request.form["url_form"]
+        short_url = shorten_url()
+        doc = {'short_url': short_url, 'long_url': long_url}
+        get_db().save(doc)
+        return render_template('shorturl.html', short_url_display=short_url)
     else:
         return render_template('home.html')
 
+
 @shortener.route('/<short_url>')
 def redirection(short_url):
-    long_url = Urls.query.filter_by(short=short_url).first()
+    long_url = get_db().find(short_url=short_url)
+    print(long_url)
     if long_url:
-        return redirect(long_url.long)
+        return redirect(long_url)
     else:
         return f'<h1>ERROR: url doesnt exist</h1>'
+
 
 @shortener.route('/display/<url>')
 def display_short_url(url):
