@@ -4,7 +4,7 @@
 
 1. Python Version: 3.8
 2. Pip Version: pip 21.0
-3. Docker version 20.10.5
+3. Docker Version: 20.10.5
 4. CouchDB Version: 3.1.1
 
 ### Python Environment Setup:
@@ -37,7 +37,7 @@ $ source ~/envs/cs739p4/bin/activate
 When you don’t need the virtual environment, just ‘deactivate’ it
 
 ```
-(cs739p1) $ deactivate
+(cs739p4) $ deactivate
 ```
 
 ### CouchDB Setup:
